@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -72,6 +73,12 @@ func findVenv(dir string) (string, error) {
 }
 
 func createPyCharmConfig(projectDir, projectName, venvPath string) error {
+	// Get Python version
+	pythonVersion, err := getPythonVersion(venvPath)
+	if err != nil {
+		return fmt.Errorf("failed to get Python version: %w", err)
+	}
+
 	// Create .idea directory if it doesn't exist
 	ideaDir := filepath.Join(projectDir, ".idea")
 	if err := os.MkdirAll(ideaDir, 0755); err != nil {
@@ -79,7 +86,7 @@ func createPyCharmConfig(projectDir, projectName, venvPath string) error {
 	}
 
 	// Use the project name for the interpreter name
-	interpreterName := fmt.Sprintf("Python 3 (%s)", projectName)
+	interpreterName := fmt.Sprintf("Python %s (%s)", pythonVersion, projectName)
 
 	// Create misc.xml
 	miscXML := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -114,4 +121,25 @@ func openPyCharm(projectDir string) error {
 	cmd := exec.Command("pycharm", projectDir)
 	cmd.Stderr = os.Stderr
 	return cmd.Start()
+}
+
+func getPythonVersion(venvPath string) (string, error) {
+	pythonPath := filepath.Join(venvPath, "bin", "python")
+	cmd := exec.Command(pythonPath, "--version")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	// Output is typically in the format "Python X.Y.Z"
+	version := strings.TrimSpace(string(output))
+	parts := strings.Split(version, " ")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("unexpected Python version format: %s", version)
+	}
+	// Return just the "X.Y" part of the version
+	versionParts := strings.Split(parts[1], ".")
+	if len(versionParts) < 2 {
+		return "", fmt.Errorf("unexpected Python version format: %s", parts[1])
+	}
+	return fmt.Sprintf("%s.%s", versionParts[0], versionParts[1]), nil
 }
