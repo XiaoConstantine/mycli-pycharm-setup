@@ -72,36 +72,41 @@ func findVenv(dir string) (string, error) {
 }
 
 func createPyCharmConfig(projectDir, projectName, venvPath string) error {
+	// Create .idea directory if it doesn't exist
 	ideaDir := filepath.Join(projectDir, ".idea")
-	err := os.MkdirAll(ideaDir, 0755)
-	if err != nil {
-		return err
+	if err := os.MkdirAll(ideaDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .idea directory: %w", err)
 	}
 
+	// Use the project name for the interpreter name
+	interpreterName := fmt.Sprintf("Python 3 (%s)", projectName)
+
+	// Create misc.xml
 	miscXML := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3 (%s)" project-jdk-type="Python SDK" />
-</project>`, projectName)
+  <component name="ProjectRootManager" version="2" project-jdk-name="%s" project-jdk-type="Python SDK" />
+</project>`, interpreterName)
 
-	err = os.WriteFile(filepath.Join(ideaDir, "misc.xml"), []byte(miscXML), 0644)
-	if err != nil {
-		return err
+	if err := os.WriteFile(filepath.Join(ideaDir, "misc.xml"), []byte(miscXML), 0644); err != nil {
+		return fmt.Errorf("failed to write misc.xml: %w", err)
 	}
 
+	// Create <project_name>.iml
 	imlXML := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/%s" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3 (%s)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="%s" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
-</module>`, filepath.Base(venvPath), filepath.Base(venvPath))
+</module>`, filepath.Base(venvPath), interpreterName)
 
 	if err := os.WriteFile(filepath.Join(ideaDir, projectName+".iml"), []byte(imlXML), 0644); err != nil {
 		return fmt.Errorf("failed to write %s.iml: %w", projectName, err)
 	}
+
 	return nil
 }
 
