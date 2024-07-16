@@ -33,7 +33,7 @@ func main() {
 
 	projectName := filepath.Base(projectDir)
 
-	err = createPyCharmConfig(projectDir, projectName)
+	err = createPyCharmConfig(projectDir, projectName, venvPath)
 	if err != nil {
 		fmt.Printf("Error creating PyCharm configuration: %v\n", err)
 		os.Exit(1)
@@ -71,7 +71,7 @@ func findVenv(dir string) (string, error) {
 	return "", fmt.Errorf("virtual environment not found")
 }
 
-func createPyCharmConfig(projectDir, projectName string) error {
+func createPyCharmConfig(projectDir, projectName, venvPath string) error {
 	ideaDir := filepath.Join(projectDir, ".idea")
 	err := os.MkdirAll(ideaDir, 0755)
 	if err != nil {
@@ -91,13 +91,18 @@ func createPyCharmConfig(projectDir, projectName string) error {
 	imlXML := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/%s" />
+    </content>
     <orderEntry type="jdk" jdkName="Python 3 (%s)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
-</module>`, projectName)
+</module>`, filepath.Base(venvPath), filepath.Base(venvPath))
 
-	return os.WriteFile(filepath.Join(ideaDir, projectName+".iml"), []byte(imlXML), 0644)
+	if err := os.WriteFile(filepath.Join(ideaDir, projectName+".iml"), []byte(imlXML), 0644); err != nil {
+		return fmt.Errorf("failed to write %s.iml: %w", projectName, err)
+	}
+	return nil
 }
 
 func openPyCharm(projectDir string) error {
